@@ -13,9 +13,9 @@ import {
 	SendMessageRequest,
 	VaChatRoomEntityItem
 } from "denetwork-chat-client";
-import React, { useRef } from "react";
+import React from "react";
 import { EtherWallet, TWalletBaseItem, Web3Digester, Web3Signer } from "web3id";
-import _, { reject } from "lodash";
+import _ from "lodash";
 import { PaginationOptions } from "denetwork-chat-client";
 import { PageUtil } from "denetwork-utils";
 
@@ -109,7 +109,6 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		this.onInputValueChanged = this.onInputValueChanged.bind( this );
 	}
 
-	// 在组件更新后滚动到底部
 	componentDidUpdate()
 	{
 		this._scrollToBottom();
@@ -330,11 +329,22 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 	{
 		return (
 			<div>
-				<div className="RoomIdDiv">roomId: { this.state.roomId }</div>
+				<div className="RoomIdDiv sticky-top">roomId: { this.state.roomId }</div>
+				<div className="ChatMessageList">
+					{ this.state.messages.map( ( item : any ) =>
+						<div key={ item.hash }>
+							{ item.fromName } / { new Date( item.timestamp ).toLocaleString() }
+							<br/>
+							{ item.body }
+							<hr/>
+						</div>
+					) }
+				</div>
+
 				{ this.state.loading ? (
-					<div className="BarDiv">Loading, please wait ...</div>
+					<div className="BarDiv sticky-bottom">Loading, please wait ...</div>
 				) : (
-					<div className="BarDiv">
+					<div className="BarDiv sticky-bottom">
 						<button onClick={ this.onClickJoinRoom }>Join</button>
 						&nbsp;
 						<button onClick={ this.onClickLeaveRoom }>Leave</button>
@@ -349,17 +359,6 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 						<button onClick={ this.onClickSendMessage }>Send</button>
 					</div>
 				) }
-
-				<div className="ChatMessageList">
-					{ this.state.messages.map( ( item : any ) =>
-						<div key={ item.hash }>
-							{ item.fromName } / { new Date( item.timestamp ).toLocaleString() }
-							<br/>
-							{ item.body }
-							<hr/>
-						</div>
-					) }
-				</div>
 				<div style={{ float:"left", clear: "both" }}
 				     ref={(el) => { this.messagesEnd = el; }}>
 				</div>

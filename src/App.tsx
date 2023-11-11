@@ -9,8 +9,9 @@ function App()
 	return (
 		<div className="App">
 			<div className="App-body">
-				<div className="RoomColumn"></div>
+				<div className="RoomColumn">
 					<ChatRoomList></ChatRoomList>
+				</div>
 				<div className="ChatColumn">
 					<ChatMessageList
 						serverUrl="localhost:6612"
