@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.css';
 import { ChatMessageList } from "./ChatMessageList";
-import { ChatRoomList } from "./ChatRoomList";
+import { RoomList } from "./RoomList";
 
 
 function App()
@@ -10,7 +10,7 @@ function App()
 		<div className="App">
 			<div className="App-body">
 				<div className="RoomColumn">
-					<ChatRoomList></ChatRoomList>
+					<RoomList></RoomList>
 				</div>
 				<div className="ChatColumn">
 					<ChatMessageList

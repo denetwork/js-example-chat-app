@@ -16,7 +16,6 @@ import {
 import React from "react";
 import { EtherWallet, TWalletBaseItem, Web3Digester, Web3Signer } from "web3id";
 import _ from "lodash";
-import { PaginationOptions } from "denetwork-chat-client";
 import { PageUtil } from "denetwork-utils";
 
 
