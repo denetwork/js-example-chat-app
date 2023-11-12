@@ -17,12 +17,12 @@ import React from "react";
 import { EtherWallet, TWalletBaseItem, Web3Digester, Web3Signer } from "web3id";
 import _ from "lodash";
 import { PageUtil } from "denetwork-utils";
+import "./ChatMessageList.css";
 
 
 export interface ChatMessageListProps
 {
 	serverUrl : string;
-	roomId : string;
 }
 
 export interface ChatMessageListState
@@ -58,11 +58,14 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		{
 			//	TODO
 			//	remove duplicate item
-			this.chatMessageList.push( message.payload );
-			this.setState( {
-				messages : this.chatMessageList
-			} );
-			console.log( `chatMessageList:`, this.chatMessageList );
+			if ( message.payload.roomId === this.state.roomId )
+			{
+				this.chatMessageList.push( message.payload );
+				this.setState( {
+					messages : this.chatMessageList
+				} );
+				console.log( `chatMessageList:`, this.chatMessageList );
+			}
 		}
 		else
 		{
@@ -82,19 +85,15 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		{
 			throw new Error( `invalid serverUrl` );
 		}
-		if ( null !== VaChatRoomEntityItem.isValidRoomId( props.roomId ) )
-		{
-			throw new Error( `invalid roomId` );
-		}
 
 		//	...
 		super( props );
 		this.state = {
 			serverUrl : props.serverUrl,
-			roomId : props.roomId,
+			roomId : ``,
 			messages : [],
 
-			loading : true,
+			loading : false,
 			value : ''
 		};
 		//	...
@@ -124,57 +123,60 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 
 		//	...
 		console.log( `🍔 componentDidMount` );
-		this._joinChatRoom( async ( _response : any ) =>
-		{
-			await this._asyncLoadQueueMessage();
-			this._scrollToBottom();
-
-			//	...
-			setTimeout( () =>
-			{
-				this.setState( { loading : false } );
-
-			}, 1000 );
-		} );
 	}
 
-	private _scrollToBottom()
-	{
-		this.messagesEnd.scrollIntoView({ behavior: "smooth" });
-	}
-
-
-	private _joinChatRoom( callback ? : ResponseCallback )
-	{
-		this.clientConnect.joinRoom( {
-			roomId : this.state.roomId
-		} as JoinRoomRequest, ( response : any ) : void =>
-		{
-			console.log( `💎 join room response: `, response );
-			if ( _.isFunction( callback ) )
-			{
-				callback( response );
-			}
-		} );
-	}
-
-	private async _asyncPullMessage( startTimestamp ? : number, endTimestamp ? : number, pageNo ? : number, pageSize ? : number ) : Promise<PullMessageResponse>
+	public async asyncLoad( roomId : string ) : Promise<boolean>
 	{
 		return new Promise( async ( resolve, reject ) =>
 		{
 			try
 			{
-				this.clientConnect.pullMessage( {
-					roomId : this.state.roomId,
-					startTimestamp : _.isNumber( startTimestamp ) ? startTimestamp : 0,
-					endTimestamp : _.isNumber( endTimestamp ) ? endTimestamp : -1,
-					pagination : {
-						pageNo : PageUtil.getSafePageNo( pageNo ),
-						pageSize : PageUtil.getSafePageSize( pageSize )
-					}
-				} as PullMessageRequest, ( response : PullMessageResponse ) : void =>
+				const errorRoomId : string | null = VaChatRoomEntityItem.isValidRoomId( roomId );
+				if ( null !== errorRoomId )
 				{
-					console.log( `🐹 pull data from the specified room and return the response: `, response );
+					return reject( errorRoomId );
+				}
+
+				//
+				//	initialize member variables
+				//
+				this.chatMessageList = [];
+				this.setState( {
+					loading : true,
+					roomId : ``,
+					messages : [],
+				} );
+				const response : any = await this.asyncJoinChatRoom( roomId );
+
+				//	...
+				await this._asyncLoadQueueMessage( roomId );
+				this._scrollToBottom();
+
+				//	...
+				this.setState( {
+					roomId : roomId,
+					loading : false
+				} );
+				resolve( true );
+			}
+			catch ( err )
+			{
+				reject( err );
+			}
+		});
+	}
+
+	public async asyncJoinChatRoom( roomId : string ) : Promise<any>
+	{
+		return new Promise( async ( resolve, reject ) =>
+		{
+			try
+			{
+				this.clientConnect.joinRoom( {
+					roomId : roomId
+				} as JoinRoomRequest, ( response : any ) : void =>
+				{
+					console.log( `💎 join room response: `, response );
 					resolve( response );
 				} );
 			}
@@ -182,22 +184,28 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 			{
 				reject( err );
 			}
-		} );
+		});
 	}
 
-	private async _asyncLoadQueueMessage()
+	private async _asyncLoadQueueMessage( roomId : string )
 	{
 		return new Promise( async ( resolve, reject ) =>
 		{
 			try
 			{
+				const errorRoomId : string | null = VaChatRoomEntityItem.isValidRoomId( roomId );
+				if ( null !== errorRoomId )
+				{
+					return reject( errorRoomId );
+				}
+
 				const startTimestamp = 0;
 				const endTimestamp = -1;
 				const pageSize = 30;
 				let pageNo = 1;
 				while ( true )
 				{
-					const pullMessageResponse : PullMessageResponse = await this._asyncPullMessage( startTimestamp, endTimestamp, pageNo, pageSize );
+					const pullMessageResponse : PullMessageResponse = await this._asyncPullMessage( roomId, startTimestamp, endTimestamp, pageNo, pageSize );
 					console.log( `pullMessageResponse :`, pullMessageResponse );
 					if ( ! _.isObject( pullMessageResponse ) ||
 						! _.has( pullMessageResponse, 'status' ) ||
@@ -208,7 +216,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					if ( ! Array.isArray( pullMessageResponse.list ) ||
 						0 === pullMessageResponse.list.length )
 					{
-						return resolve( true )
+						break;
 					}
 
 					let changed : boolean = false;
@@ -228,12 +236,46 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					if ( changed )
 					{
 						this.setState( { messages : this.chatMessageList } );
-						this._scrollToBottom();
 					}
 
 					//	...
 					pageNo++;
 				}
+
+				return resolve( true );
+			}
+			catch ( err )
+			{
+				reject( err );
+			}
+		} );
+	}
+
+	private async _asyncPullMessage( roomId : string, startTimestamp ? : number, endTimestamp ? : number, pageNo ? : number, pageSize ? : number ) : Promise<PullMessageResponse>
+	{
+		return new Promise( async ( resolve, reject ) =>
+		{
+			try
+			{
+				const errorRoomId : string | null = VaChatRoomEntityItem.isValidRoomId( roomId );
+				if ( null !== errorRoomId )
+				{
+					return reject( errorRoomId );
+				}
+
+				this.clientConnect.pullMessage( {
+					roomId : roomId,
+					startTimestamp : _.isNumber( startTimestamp ) ? startTimestamp : 0,
+					endTimestamp : _.isNumber( endTimestamp ) ? endTimestamp : -1,
+					pagination : {
+						pageNo : PageUtil.getSafePageNo( pageNo ),
+						pageSize : PageUtil.getSafePageSize( pageSize )
+					}
+				} as PullMessageRequest, ( response : PullMessageResponse ) : void =>
+				{
+					console.log( `🐹 pull data from the specified room and return the response: `, response );
+					resolve( response );
+				} );
 			}
 			catch ( err )
 			{
@@ -243,10 +285,16 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 	}
 
 
+
+
+	private _scrollToBottom()
+	{
+		this.messagesEnd.scrollIntoView({ behavior: "smooth" });
+	}
+
 	onClickJoinRoom( e : any )
 	{
 		e.preventDefault();
-		this._joinChatRoom();
 	}
 
 	onClickLeaveRoom( e : any )
@@ -340,24 +388,25 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					) }
 				</div>
 
-				{ this.state.loading ? (
-					<div className="BarDiv sticky-bottom">Loading, please wait ...</div>
-				) : (
-					<div className="BarDiv sticky-bottom">
-						<button onClick={ this.onClickJoinRoom }>Join</button>
-						&nbsp;
-						<button onClick={ this.onClickLeaveRoom }>Leave</button>
-						&nbsp;&nbsp;&nbsp;
-						<input className="MessageInput"
-						       autoFocus
-						       placeholder="Say something ..."
-						       value={ this.state.value }
-						       onKeyDown={ this.onInputKeyDown }
-						       onChange={ this.onInputValueChanged }></input>
-						&nbsp;
-						<button onClick={ this.onClickSendMessage }>Send</button>
-					</div>
-				) }
+				{ this.state.loading &&
+				<div className="BarDiv sticky-bottom">Loading, please wait ...</div>
+				}
+				{ ( ! this.state.loading && '' !== this.state.roomId ) &&
+				<div className="BarDiv sticky-bottom">
+					{/*<button onClick={ this.onClickJoinRoom }>Join</button>*/}
+					{/*&nbsp;*/}
+					{/*<button onClick={ this.onClickLeaveRoom }>Leave</button>*/}
+					{/*&nbsp;&nbsp;&nbsp;*/}
+					<input className="MessageInput"
+					       autoFocus
+					       placeholder="Say something ..."
+					       value={ this.state.value }
+					       onKeyDown={ this.onInputKeyDown }
+					       onChange={ this.onInputValueChanged }></input>
+					&nbsp;
+					<button onClick={ this.onClickSendMessage }>Send</button>
+				</div>
+				}
 				<div style={{ float:"left", clear: "both" }}
 				     ref={(el) => { this.messagesEnd = el; }}>
 				</div>

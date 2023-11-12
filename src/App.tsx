@@ -1,25 +1,62 @@
 import React from 'react';
 import './App.css';
-import { ChatMessageList } from "./ChatMessageList";
-import { RoomList } from "./RoomList";
+import { ChatMessageList } from "./components/ChatMessageList/ChatMessageList";
+import { ChatRoomListProps, ChatRoomListState, RoomList } from "./components/RoomList/RoomList";
+import { ChatRoomEntityItem } from "denetwork-chat-client/dist/entities/ChatRoomEntity";
 
 
-function App()
+export interface AppProps
 {
-	return (
-		<div className="App">
-			<div className="App-body">
-				<div className="RoomColumn">
-					<RoomList></RoomList>
-				</div>
-				<div className="ChatColumn">
-					<ChatMessageList
-						serverUrl="localhost:6612"
-						roomId="g0x827321bdda13dce855ab6f8a52952cc9bd0574ba"/>
-				</div>
-			</div>
-		</div>
-	);
 }
 
-export default App;
+export interface AppState
+{
+}
+
+export class App extends React.Component<AppProps, AppState>
+{
+	refChatMessageList : React.RefObject<any>;
+
+	constructor( props : any )
+	{
+		super( props );
+
+		this.refChatMessageList = React.createRef();
+
+		this.onRoomChanged = this.onRoomChanged.bind( this );
+	}
+
+	onRoomChanged( roomId : string )
+	{
+		console.log( `App::onRoomChanged :`, roomId );
+
+		const childInstance = this.refChatMessageList.current;
+		childInstance.asyncLoad( roomId ).then( ( res : boolean ) =>
+		{
+			console.log( `App::onRoomChanged ChatMessageList.asyncLoad :`, res );
+		}).catch( ( err : any ) =>
+		{
+			console.error( `App::onRoomChanged err: `, err );
+		})
+	}
+
+
+	render()
+	{
+		return (
+			<div className="App">
+				<div className="App-body">
+					<div className="RoomColumn">
+						<RoomList callbackOnRoomChanged={ this.onRoomChanged }></RoomList>
+					</div>
+					<div className="ChatColumn">
+						<ChatMessageList
+							ref={this.refChatMessageList}
+							serverUrl="localhost:6612"
+						/>
+					</div>
+				</div>
+			</div>
+		);
+	}
+}
