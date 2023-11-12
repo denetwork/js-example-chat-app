@@ -1,8 +1,7 @@
 import React from 'react';
 import './App.css';
 import { ChatMessageList } from "./components/ChatMessageList/ChatMessageList";
-import { ChatRoomListProps, ChatRoomListState, RoomList } from "./components/RoomList/RoomList";
-import { ChatRoomEntityItem } from "denetwork-chat-client/dist/entities/ChatRoomEntity";
+import { RoomList } from "./components/RoomList/RoomList";
 
 
 export interface AppProps

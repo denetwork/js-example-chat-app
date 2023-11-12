@@ -146,7 +146,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					roomId : ``,
 					messages : [],
 				} );
-				const response : any = await this.asyncJoinChatRoom( roomId );
+				const _response : any = await this.asyncJoinChatRoom( roomId );
 
 				//	...
 				await this._asyncLoadQueueMessage( roomId );
