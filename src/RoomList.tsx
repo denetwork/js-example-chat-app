@@ -1,8 +1,7 @@
-import { ChatRoomMemberType, ClientRoom, ResponseCallback } from "denetwork-chat-client";
+import { ChatRoomMemberType, ClientRoom } from "denetwork-chat-client";
 import React from "react";
 import { ChatRoomEntityItem } from "denetwork-chat-client/dist/entities/ChatRoomEntity";
-import { PopupComponent } from "./components/PopupComponent/PopupComponent";
-import { PopupCreateRoom, PopupCreateRoomCallback } from "./components/PopupCreateRoom/PopupCreateRoom";
+import { PopupCreateRoom } from "./components/PopupCreateRoom/PopupCreateRoom";
 import { CreateChatRoom } from "denetwork-chat-client/dist/models/rooms/CreateChatRoom";
 import { EtherWallet } from "web3id";
 
@@ -59,7 +58,7 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 
 		//	...
 		console.log( `🍔 componentDidMount` );
-		this._asyncLoadRooms().then( res =>
+		this._asyncLoadRooms().then( _res =>
 		{
 			this._scrollToBottom();
 			setTimeout( () =>
@@ -67,7 +66,7 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 				this.setState( { loading : false } );
 
 			}, 1000 );
-		} ).catch( err =>
+		} ).catch( _err =>
 		{
 			setTimeout( () =>
 			{

@@ -1,4 +1,4 @@
-import React, { Component, useRef } from "react";
+import React, { Component } from "react";
 import { PopupComponent } from "../PopupComponent/PopupComponent";
 import "./PopupCreateRoom.css";
 import { ChatType } from "denetwork-chat-client";
@@ -53,7 +53,7 @@ export class PopupCreateRoom extends Component<PopupCreateRoomProps,PopupCreateR
 		});
 	}
 
-	onClickSubmit( e : any )
+	onClickSubmit( _e : any )
 	{
 		if ( ! _.isFunction( this.props.callback ) )
 		{
