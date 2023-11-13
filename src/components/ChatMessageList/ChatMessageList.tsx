@@ -405,6 +405,10 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					       onChange={ this.onInputValueChanged }></input>
 					&nbsp;
 					<button onClick={ this.onClickSendMessage }>Send</button>
+					&nbsp;&nbsp;&nbsp;&nbsp;
+					<button>Invite</button>
+					&nbsp;
+					<button>Join</button>
 				</div>
 				}
 				<div style={{ float:"left", clear: "both" }}

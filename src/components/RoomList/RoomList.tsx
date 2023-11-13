@@ -176,7 +176,7 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 				     className={ classnames( 'roomItem', { 'selected' : this.state.currentRoomId === item.roomId } ) }
 				     onClick={ ( _e ) => { this.onClickRoomItem( item.roomId ); } }>
 					<div className="roomName">
-						{ ChatType.PRIVATE === item.chatType ? '私聊' : '群聊' }
+						{ ChatType.PRIVATE === item.chatType ? 'Private' : 'Group' }
 						/
 						{ item.name }({ Object.keys( item.members ).length })</div>
 					<div className="roomId">{ item.roomId }</div>
