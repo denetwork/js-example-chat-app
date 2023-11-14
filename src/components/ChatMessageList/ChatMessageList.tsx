@@ -6,6 +6,7 @@ import {
 	LeaveRoomRequest,
 	LeaveRoomResponse,
 	MsgType,
+	PaginationOrder,
 	PullMessageRequest,
 	PullMessageResponse,
 	ReceiveMessageCallback,
@@ -19,6 +20,15 @@ import _ from "lodash";
 import { PageUtil } from "denetwork-utils";
 import "./ChatMessageList.css";
 
+
+export interface LastTimestamp
+{
+	//
+	//	key : roomId
+	//	value : timestamp
+	//
+	[ key : string ] : number;
+}
 
 export interface ChatMessageListProps
 {
@@ -48,8 +58,9 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 	//
 	mnemonic : string = 'olympic cradle tragic crucial exit annual silly cloth scale fine gesture ancient';
 	walletObj : TWalletBaseItem = EtherWallet.createWalletFromMnemonic( this.mnemonic );
-	chatMessageList : Array<ChatMessage> = [];
 	clientConnect ! : ClientConnect;
+	chatMessageList : Array<ChatMessage> = [];
+	lastTimestamp : LastTimestamp = {};
 
 	receiveMessageCallback : ReceiveMessageCallback = ( message : SendMessageRequest, callback ? : ( ack : any ) => void ) =>
 	{
@@ -103,13 +114,15 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		this.onClickJoinRoom = this.onClickJoinRoom.bind( this );
 		this.onClickLeaveRoom = this.onClickLeaveRoom.bind( this );
 		this.onClickSendMessage = this.onClickSendMessage.bind( this );
+		this.onClickLoadMore = this.onClickLoadMore.bind( this );
 		this.onInputKeyDown = this.onInputKeyDown.bind( this );
 		this.onInputValueChanged = this.onInputValueChanged.bind( this );
+		this._onChatMessageListScroll = this._onChatMessageListScroll.bind( this );
 	}
 
 	componentDidUpdate()
 	{
-		this._scrollToBottom();
+		//this._scrollToBottom();
 	}
 
 	componentDidMount()
@@ -141,6 +154,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 				//	initialize member variables
 				//
 				this.chatMessageList = [];
+				delete this.lastTimestamp[ roomId ];
 				this.setState( {
 					loading : true,
 					roomId : ``,
@@ -187,7 +201,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		});
 	}
 
-	private async _asyncLoadQueueMessage( roomId : string )
+	private async _asyncLoadQueueMessage( roomId : string ) : Promise<number>
 	{
 		return new Promise( async ( resolve, reject ) =>
 		{
@@ -200,49 +214,68 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 				}
 
 				const startTimestamp = 0;
-				const endTimestamp = -1;
-				const pageSize = 30;
+				let endTimestamp = -1;
+				const pageSize = 10;
 				let pageNo = 1;
-				while ( true )
-				{
-					const pullMessageResponse : PullMessageResponse = await this._asyncPullMessage( roomId, startTimestamp, endTimestamp, pageNo, pageSize );
-					console.log( `pullMessageResponse :`, pullMessageResponse );
-					if ( ! _.isObject( pullMessageResponse ) ||
-						! _.has( pullMessageResponse, 'status' ) ||
-						! _.has( pullMessageResponse, 'list' ) )
-					{
-						return reject( `invalid pullMessageResponse` );
-					}
-					if ( ! Array.isArray( pullMessageResponse.list ) ||
-						0 === pullMessageResponse.list.length )
-					{
-						break;
-					}
 
-					let changed : boolean = false;
-					for ( const item of pullMessageResponse.list )
+				if ( _.isNumber( this.lastTimestamp[ roomId ] ) )
+				{
+					endTimestamp = this.lastTimestamp[ roomId ];
+					if ( endTimestamp > 1 )
 					{
-						if ( _.isObject( item ) &&
-							_.isObject( item.data ) )
+						//	to exclude the current record
+						endTimestamp --;
+					}
+				}
+
+				const pullMessageResponse : PullMessageResponse = await this._asyncPullMessage( roomId, startTimestamp, endTimestamp, pageNo, pageSize );
+				console.log( `pullMessageResponse :`, pullMessageResponse );
+				if ( ! _.isObject( pullMessageResponse ) ||
+					! _.has( pullMessageResponse, 'status' ) ||
+					! _.has( pullMessageResponse, 'list' ) )
+				{
+					return reject( `invalid pullMessageResponse` );
+				}
+				if ( ! Array.isArray( pullMessageResponse.list ) ||
+					0 === pullMessageResponse.list.length )
+				{
+					return resolve( 0 );
+				}
+
+				let changed : number = 0;
+				for ( const item of pullMessageResponse.list )
+				{
+					if ( _.isObject( item ) &&
+						_.isObject( item.data ) )
+					{
+						const chatMessage : SendMessageRequest = item.data;
+						if ( _.isObject( chatMessage ) )
 						{
-							const chatMessage : SendMessageRequest = item.data;
-							if ( _.isObject( chatMessage ) )
+							changed ++;
+							this.chatMessageList.unshift( chatMessage.payload );
+
+							//
+							//	save the latest key for querying the next
+							//
+							if ( _.isNumber( chatMessage.payload.timestamp ) &&
+								chatMessage.payload.timestamp > 0 )
 							{
-								changed = true;
-								this.chatMessageList.push( chatMessage.payload )
+								if ( undefined === this.lastTimestamp[ roomId ] ||
+									chatMessage.payload.timestamp < this.lastTimestamp[ roomId ] )
+								{
+									//	save the older timestamp
+									this.lastTimestamp[ roomId ] = chatMessage.payload.timestamp;
+								}
 							}
 						}
 					}
-					if ( changed )
-					{
-						this.setState( { messages : this.chatMessageList } );
-					}
-
-					//	...
-					pageNo++;
+				}
+				if ( changed > 0 )
+				{
+					this.setState( { messages : this.chatMessageList } );
 				}
 
-				return resolve( true );
+				return resolve( changed );
 			}
 			catch ( err )
 			{
@@ -269,7 +302,8 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					endTimestamp : _.isNumber( endTimestamp ) ? endTimestamp : -1,
 					pagination : {
 						pageNo : PageUtil.getSafePageNo( pageNo ),
-						pageSize : PageUtil.getSafePageSize( pageSize )
+						pageSize : PageUtil.getSafePageSize( pageSize ),
+						order : PaginationOrder.DESC
 					}
 				} as PullMessageRequest, ( response : PullMessageResponse ) : void =>
 				{
@@ -290,6 +324,33 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 	private _scrollToBottom()
 	{
 		this.messagesEnd.scrollIntoView({ behavior: "smooth" });
+	}
+
+	private _onChatMessageListScroll( e : any )
+	{
+		const scrollTop = e.target.scrollTop;
+		if ( 0 === scrollTop )
+		{
+			console.log( `🍄 handleScroll : at top` );
+		}
+	}
+
+	onClickLoadMore( e : any )
+	{
+		e.preventDefault();
+		if ( null !== VaChatRoomEntityItem.isValidRoomId( this.state.roomId ) )
+		{
+			throw new Error( `invalid this.state.roomId` );
+		}
+
+		this._asyncLoadQueueMessage( this.state.roomId ).then( loaded=>
+		{
+			//this._scrollToBottom();
+
+		}).catch( err =>
+		{
+			console.error( err );
+		});
 	}
 
 	onClickJoinRoom( e : any )
@@ -354,6 +415,8 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		{
 			console.log( `onClickSendMessage :`, res );
 			this.setState({ value : '' });
+			this._scrollToBottom();
+
 		} ).catch( err =>
 		{
 			console.error( `onClickSendMessage :`, err );
@@ -376,8 +439,17 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 	{
 		return (
 			<div>
-				<div className="RoomIdDiv sticky-top">roomId: { this.state.roomId }</div>
-				<div className="ChatMessageList">
+				<div className="RoomIdDiv sticky-top">
+					roomId: { this.state.roomId }
+					&nbsp;
+					{ '' !== this.state.roomId &&
+					<a onClick={ this.onClickLoadMore } className="LoadMoreButton">Older</a>
+					}
+				</div>
+				<div className="ChatMessageList"
+				     style={{ minHeight: '100vh', overflowY: 'scroll' }}
+				     onScroll={ this._onChatMessageListScroll }
+				>
 					{ this.state.messages.map( ( item : any ) =>
 						<div key={ item.hash }>
 							{ item.fromName } / { new Date( item.timestamp ).toLocaleString() }
