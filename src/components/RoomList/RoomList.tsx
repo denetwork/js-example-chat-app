@@ -7,6 +7,7 @@ import { EtherWallet } from "web3id";
 import classnames from "classnames";
 import "./RoomList.css";
 import _ from "lodash";
+import { PopupJoin } from "../PopupJoin/PopupJoin";
 
 export interface ChatRoomListProps
 {
@@ -29,6 +30,7 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 	initialized : boolean = false;
 	clientRoom !: ClientRoom;
 	refPopupCreateRoom : React.RefObject<any>;
+	refPopupJoinRoom : React.RefObject<any>;
 
 
 	constructor( props : any )
@@ -48,7 +50,9 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 
 		this.clientRoom = new ClientRoom();
 		this.refPopupCreateRoom = React.createRef();
+		this.refPopupJoinRoom = React.createRef();
 		this.onClickCreateRoom = this.onClickCreateRoom.bind( this );
+		this.onClickJoinRoom = this.onClickJoinRoom.bind( this );
 		this.callbackPopupCreateRoom = this.callbackPopupCreateRoom.bind( this );
 		this.onClickRoomItem = this.onClickRoomItem.bind( this );
 	}
@@ -110,8 +114,15 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 	onClickCreateRoom()
 	{
 		const childInstance = this.refPopupCreateRoom.current;
-		childInstance.togglePopupCreateRoom();
+		childInstance.togglePopup();
 	}
+
+	onClickJoinRoom()
+	{
+		const childInstance = this.refPopupJoinRoom.current;
+		childInstance.togglePopup();
+	}
+
 	callbackPopupCreateRoom( data : any )
 	{
 		console.log( `callbackPopupCreateRoom :`, data );
@@ -161,11 +172,16 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 					<div>Loading ...</div>
 				) : (
 					<div>
-						<button onClick={ this.onClickCreateRoom }>Create room</button>
+						<button onClick={ this.onClickCreateRoom }>Create a room</button>
 						<PopupCreateRoom
 							ref={this.refPopupCreateRoom}
 							callback={ this.callbackPopupCreateRoom }
 						></PopupCreateRoom>
+
+						<button onClick={ this.onClickJoinRoom }>Join a room</button>
+						<PopupJoin
+							ref={this.refPopupJoinRoom}
+						></PopupJoin>
 					</div>
 				) }
 			</div>

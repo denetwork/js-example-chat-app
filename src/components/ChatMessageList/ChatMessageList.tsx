@@ -19,6 +19,8 @@ import { EtherWallet, TWalletBaseItem, Web3Digester, Web3Signer } from "web3id";
 import _ from "lodash";
 import { PageUtil } from "denetwork-utils";
 import "./ChatMessageList.css";
+import { PopupInvitation } from "../PopupInvitation/PopupInvitation";
+import { PopupJoin } from "../PopupJoin/PopupJoin";
 
 
 export interface LastTimestamp
@@ -53,6 +55,10 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 	initialized : boolean = false;
 	messagesEnd : any = null;
 
+	refPopupInvitation : React.RefObject<any>;
+	refPopupJoin : React.RefObject<any>;
+
+
 	//
 	//	create a wallet by mnemonic
 	//
@@ -75,6 +81,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 				this.setState( {
 					messages : this.chatMessageList
 				} );
+				this._scrollToBottom();
 				console.log( `chatMessageList:`, this.chatMessageList );
 			}
 		}
@@ -111,11 +118,17 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		this.clientConnect = new ClientConnect( this.state.serverUrl, this.receiveMessageCallback );
 
 		//	...
+		this.refPopupInvitation = React.createRef();
+		this.refPopupJoin = React.createRef();
+
+		//	...
 		this.onClickJoinRoom = this.onClickJoinRoom.bind( this );
 		this.onClickLeaveRoom = this.onClickLeaveRoom.bind( this );
 		this.onClickSendMessage = this.onClickSendMessage.bind( this );
 		this.onClickLoadMore = this.onClickLoadMore.bind( this );
 		this.onInputKeyDown = this.onInputKeyDown.bind( this );
+		this.onClickInvitation = this.onClickInvitation.bind( this );
+		this.onClickJoin = this.onClickJoin.bind( this );
 		this.onInputValueChanged = this.onInputValueChanged.bind( this );
 		this._onChatMessageListScroll = this._onChatMessageListScroll.bind( this );
 	}
@@ -435,16 +448,27 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		}
 	}
 
+	onClickInvitation()
+	{
+		const childInstance = this.refPopupInvitation.current;
+		childInstance.togglePopup( this.state.roomId );
+	}
+	onClickJoin()
+	{
+		const childInstance = this.refPopupJoin.current;
+		childInstance.togglePopup();
+	}
+
+
 	render()
 	{
 		return (
 			<div>
 				<div className="RoomIdDiv sticky-top">
 					roomId: { this.state.roomId }
-					&nbsp;
-					{ '' !== this.state.roomId &&
+				</div>
+				<div className="LoadMreDiv">
 					<a onClick={ this.onClickLoadMore } className="LoadMoreButton">Older</a>
-					}
 				</div>
 				<div className="ChatMessageList"
 				     style={{ minHeight: '100vh', overflowY: 'scroll' }}
@@ -459,6 +483,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 						</div>
 					) }
 				</div>
+				<div style={{ height: '30px' }}></div>
 
 				{ this.state.loading &&
 				<div className="BarDiv sticky-bottom">Loading, please wait ...</div>
@@ -478,9 +503,10 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					&nbsp;
 					<button onClick={ this.onClickSendMessage }>Send</button>
 					&nbsp;&nbsp;&nbsp;&nbsp;
-					<button>Invite</button>
-					&nbsp;
-					<button>Join</button>
+					<button onClick={ this.onClickInvitation }>Invite</button>
+					<PopupInvitation
+						ref={this.refPopupInvitation}
+					></PopupInvitation>
 				</div>
 				}
 				<div style={{ float:"left", clear: "both" }}

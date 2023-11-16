@@ -15,7 +15,7 @@ export interface PopupCreateRoomProps
 }
 export interface PopupCreateRoomState
 {
-	showPopupCreateRoom : boolean;
+	showPopup : boolean;
 	selectedChatType : number;
 }
 
@@ -27,22 +27,22 @@ export class PopupCreateRoom extends Component<PopupCreateRoomProps,PopupCreateR
 	{
 		super( props );
 		this.state = {
-			showPopupCreateRoom : false,
+			showPopup : false,
 			selectedChatType : ChatType.PRIVATE,
 		};
 
 		this.refInputName = React.createRef();
 
 		//	...
-		this.togglePopupCreateRoom = this.togglePopupCreateRoom.bind( this );
+		this.togglePopup = this.togglePopup.bind( this );
 		this.onChatTypeOptionChange = this.onChatTypeOptionChange.bind( this );
 		this.onClickSubmit = this.onClickSubmit.bind( this );
 	}
 
-	public togglePopupCreateRoom()
+	public togglePopup()
 	{
 		this.setState( {
-			showPopupCreateRoom : ! this.state.showPopupCreateRoom,
+			showPopup : ! this.state.showPopup,
 		} );
 	}
 
@@ -73,8 +73,8 @@ export class PopupCreateRoom extends Component<PopupCreateRoomProps,PopupCreateR
 	{
 		return (
 			<div className="container">
-			{ this.state.showPopupCreateRoom &&
-			<PopupComponent onClose={ this.togglePopupCreateRoom }>
+			{ this.state.showPopup &&
+			<PopupComponent onClose={ this.togglePopup }>
 				<div className="titleDiv">Create Chat Room</div>
 				<table>
 					<tbody>
@@ -114,7 +114,7 @@ export class PopupCreateRoom extends Component<PopupCreateRoomProps,PopupCreateR
 					<tr>
 						<td></td>
 						<td>
-							<button onClick={ this.onClickSubmit } className="saveButton">Save</button>
+							<button onClick={ this.onClickSubmit } className="optButton">Save</button>
 						</td>
 					</tr>
 					</tbody>
