@@ -1,8 +1,16 @@
 import React, { Component } from "react";
 import { PopupComponent } from "../PopupComponent/PopupComponent";
 import "./PopupJoin.css";
-import { ClientRoom, InviteRequest, VaChatRoomEntityItem } from "denetwork-chat-client";
+import {
+	ChatRoomMember,
+	ChatRoomMemberType,
+	ClientRoom,
+	InviteRequest,
+	VaChatRoomEntityItem
+} from "denetwork-chat-client";
 import { ChatRoomEntityItem } from "denetwork-chat-client/dist/entities/ChatRoomEntity";
+import { EtherWallet } from "web3id";
+import _ from "lodash";
 
 
 export interface PopupJoinProps
@@ -72,8 +80,31 @@ export class PopupJoin extends Component<PopupJoinProps, PopupJoinState>
 
 	onClickSaveJoin()
 	{
+		const userId : string | null = localStorage.getItem( `user.current` );
+		const mnemonic : string | null = localStorage.getItem( `user.mnemonic` );
+		if ( ! _.isString( mnemonic ) || _.isEmpty( mnemonic ) )
+		{
+			window.alert( `user.mnemonic empty` );
+			return ;
+		}
+
+		//	create wallet
+		const walletObj = EtherWallet.createWalletFromMnemonic( mnemonic );
+		if ( ! walletObj )
+		{
+			window.alert( `failed to create walletObj` );
+			return ;
+		}
+
+		const member : ChatRoomMember = {
+			memberType : ChatRoomMemberType.MEMBER,
+			wallet : walletObj.address,
+			publicKey : walletObj.publicKey,
+			userName : `User${ userId }`
+		};
+
 		const inviteString : string = this.refTextarea.current.value;
-		this.clientRoom.acceptInvitation( inviteString ).then( ( chatRoomEntityItem : ChatRoomEntityItem ) =>
+		this.clientRoom.acceptInvitation( inviteString, member ).then( ( chatRoomEntityItem : ChatRoomEntityItem ) =>
 		{
 			console.log( `chatRoomEntityItem :`, chatRoomEntityItem );
 			window.alert( `Joined room ${ chatRoomEntityItem.name }` );

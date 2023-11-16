@@ -23,6 +23,7 @@ export class App extends React.Component<AppProps, AppState>
 		this.refChatMessageList = React.createRef();
 
 		this.onRoomChanged = this.onRoomChanged.bind( this );
+		this.onSelectUserChanged = this.onSelectUserChanged.bind( this );
 	}
 
 	onRoomChanged( roomId : string )
@@ -39,11 +40,26 @@ export class App extends React.Component<AppProps, AppState>
 		})
 	}
 
+	onSelectUserChanged( e : any )
+	{
+		const userId : number = parseInt( e.target.value );
+		const childInstance = this.refChatMessageList.current;
+		childInstance.setUser( userId );
+	}
+
 
 	render()
 	{
 		return (
 			<div className="App">
+				<div className="App-header">
+					I am : &nbsp;
+					<select onChange={ this.onSelectUserChanged } >
+						<option value={1}>Alice</option>
+						<option value={2}>Bob</option>
+						<option value={3}>Mary</option>
+					</select>
+				</div>
 				<div className="App-body">
 					<div className="RoomColumn">
 						<RoomList callbackOnRoomChanged={ this.onRoomChanged }></RoomList>

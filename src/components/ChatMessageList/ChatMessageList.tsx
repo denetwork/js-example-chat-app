@@ -1,7 +1,7 @@
 import {
 	ChatMessage,
 	ChatType,
-	ClientConnect,
+	ClientConnect, ClientRoom,
 	JoinRoomRequest,
 	LeaveRoomRequest,
 	LeaveRoomResponse,
@@ -20,7 +20,7 @@ import _ from "lodash";
 import { PageUtil } from "denetwork-utils";
 import "./ChatMessageList.css";
 import { PopupInvitation } from "../PopupInvitation/PopupInvitation";
-import { PopupJoin } from "../PopupJoin/PopupJoin";
+import { ChatRoomEntityItem } from "denetwork-chat-client/dist/entities/ChatRoomEntity";
 
 
 export interface LastTimestamp
@@ -41,6 +41,8 @@ export interface ChatMessageListState
 {
 	serverUrl : string;
 	roomId : string;
+	roomItem : ChatRoomEntityItem;
+	userId : number;	//	current user id
 
 	loading : boolean;
 	value : string;
@@ -57,14 +59,18 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 
 	refPopupInvitation : React.RefObject<any>;
 	refPopupJoin : React.RefObject<any>;
-
+	mnemonicList : Array<string> = [
+		'olympic cradle tragic crucial exit annual silly cloth scale fine gesture ancient',
+		'evidence cement snap basket genre fantasy degree ability sunset pistol palace target',
+		'electric shoot legal trial crane rib garlic claw armed snow blind advance'
+	];
 
 	//
 	//	create a wallet by mnemonic
 	//
-	mnemonic : string = 'olympic cradle tragic crucial exit annual silly cloth scale fine gesture ancient';
-	walletObj : TWalletBaseItem = EtherWallet.createWalletFromMnemonic( this.mnemonic );
+	walletObj !: TWalletBaseItem;
 	clientConnect ! : ClientConnect;
+	clientRoom !: ClientRoom;
 	chatMessageList : Array<ChatMessage> = [];
 	lastTimestamp : LastTimestamp = {};
 
@@ -109,13 +115,16 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		this.state = {
 			serverUrl : props.serverUrl,
 			roomId : ``,
-			messages : [],
+			roomItem : {} as ChatRoomEntityItem,
+			userId : 1,
 
+			messages : [],
 			loading : false,
 			value : ''
 		};
 		//	...
 		this.clientConnect = new ClientConnect( this.state.serverUrl, this.receiveMessageCallback );
+		this.clientRoom = new ClientRoom();
 
 		//	...
 		this.refPopupInvitation = React.createRef();
@@ -131,6 +140,9 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		this.onClickJoin = this.onClickJoin.bind( this );
 		this.onInputValueChanged = this.onInputValueChanged.bind( this );
 		this._onChatMessageListScroll = this._onChatMessageListScroll.bind( this );
+
+		//	...
+		this.setUser( 1 );
 	}
 
 	componentDidUpdate()
@@ -151,6 +163,19 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		console.log( `🍔 componentDidMount` );
 	}
 
+	public setUser( userId : number )
+	{
+		this.setState({
+			userId : userId,
+		})
+		console.log( `⭐️ user changed to: `, userId, this.mnemonicList[ userId - 1 ] );
+		localStorage.setItem( `user.current`, userId.toString() );
+		localStorage.setItem( `user.mnemonic`, this.mnemonicList[ userId - 1 ] );
+
+		//	create wallet
+		this.walletObj = EtherWallet.createWalletFromMnemonic( this.mnemonicList[ userId - 1 ] );
+	}
+
 	public async asyncLoad( roomId : string ) : Promise<boolean>
 	{
 		return new Promise( async ( resolve, reject ) =>
@@ -163,6 +188,12 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					return reject( errorRoomId );
 				}
 
+				const roomItem : ChatRoomEntityItem | null = await this.clientRoom.queryRoom( roomId );
+				if ( ! roomItem )
+				{
+					return reject( `room not found` );
+				}
+
 				//
 				//	initialize member variables
 				//
@@ -171,6 +202,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 				this.setState( {
 					loading : true,
 					roomId : ``,
+					roomItem : roomItem,
 					messages : [],
 				} );
 				const _response : any = await this.asyncJoinChatRoom( roomId );
@@ -389,12 +421,12 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		{
 			try
 			{
+				const pinCode = ``;
 				const callback : ResponseCallback = ( response : any ) : void =>
 				{
 					console.log( `🍔 send message response: `, response );
 				};
 				let chatMessage : ChatMessage = {
-					msgType : MsgType.SEND,
 					chatType : ChatType.GROUP,
 					wallet : this.walletObj.address,
 					fromName : `XING`,
@@ -405,13 +437,17 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					hash : '',
 					sig : '',
 				};
-				chatMessage.sig = await Web3Signer.signObject( this.walletObj.privateKey, chatMessage );
-				chatMessage.hash = await Web3Digester.hashObject( chatMessage );
-				const sendMessageRequest : SendMessageRequest = {
-					payload : chatMessage
+				console.log( `will send message: `, chatMessage );
+
+				if ( ChatType.PRIVATE === this.state.roomItem.chatType )
+				{
+					this.clientConnect.sendPrivateMessage( this.walletObj.privateKey, chatMessage, callback );
 				}
-				console.log( `will send message: `, sendMessageRequest );
-				this.clientConnect.sendMessage( sendMessageRequest, callback );
+				else if ( ChatType.GROUP === this.state.roomItem.chatType )
+				{
+					this.clientConnect.sendGroupMessage( this.walletObj.privateKey, chatMessage, pinCode, callback );
+				}
+
 				resolve( true );
 			}
 			catch ( err )
