@@ -126,17 +126,36 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 	callbackPopupCreateRoom( data : any )
 	{
 		console.log( `callbackPopupCreateRoom :`, data );
-		const BobWalletObj = EtherWallet.createWalletFromMnemonic();
-		BobWalletObj.address = BobWalletObj.address.trim().toLowerCase();
+
+		const userId : string | null = localStorage.getItem( `current.userId` );
+		const userName : string | null = localStorage.getItem( `current.userName` );
+		const mnemonic : string | null = localStorage.getItem( `current.mnemonic` );
+
+		if ( ! _.isString( mnemonic ) || _.isEmpty( mnemonic ) )
+		{
+			window.alert( `current.mnemonic empty` );
+			return ;
+		}
+
+		//	create wallet
+		const walletObj = EtherWallet.createWalletFromMnemonic( mnemonic );
+		if ( ! walletObj )
+		{
+			window.alert( `failed to create walletObj` );
+			return ;
+		}
+
+		console.log( `onClickSaveJoin - walletObj :`, walletObj );
+		walletObj.address = walletObj.address.trim().toLowerCase();
 		const createChatRoomOptions: CreateChatRoom = {
 			chatType : data.chatType,
 			name : data.name,
 			members : {
-				[ BobWalletObj.address ] : {
+				[ walletObj.address ] : {
 					memberType : ChatRoomMemberType.OWNER,
-					wallet : BobWalletObj.address,
-					publicKey : BobWalletObj.publicKey,
-					userName : 'Bob',
+					wallet : walletObj.address,
+					publicKey : walletObj.publicKey,
+					userName : String( userName ),
 					userAvatar : 'https://www.aaa/avatar.png',
 					timestamp : new Date().getTime()
 				}
@@ -145,6 +164,7 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		this.clientRoom.createRoom( createChatRoomOptions ).then( response =>
 		{
 			console.log( `callbackPopupCreateRoom response :`, response );
+			window.alert( `Room ${ data.name } was created!` );
 
 		}).catch( err =>
 		{

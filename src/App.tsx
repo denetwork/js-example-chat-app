@@ -10,6 +10,7 @@ export interface AppProps
 
 export interface AppState
 {
+	selectedUserId : number
 }
 
 export class App extends React.Component<AppProps, AppState>
@@ -19,11 +20,32 @@ export class App extends React.Component<AppProps, AppState>
 	constructor( props : any )
 	{
 		super( props );
+		this.state = {
+			selectedUserId : 1,
+		};
 
+		//	...
 		this.refChatMessageList = React.createRef();
 
+		//	...
 		this.onRoomChanged = this.onRoomChanged.bind( this );
 		this.onSelectUserChanged = this.onSelectUserChanged.bind( this );
+	}
+
+	componentDidMount()
+	{
+		this.initSelectedUser();
+	}
+
+	private initSelectedUser()
+	{
+		let userIdString : string | null = localStorage.getItem( `current.userId` ) || '1';
+		const userId : number = parseInt( userIdString );
+
+		console.log( `initSelectedUser userId :`, userId );
+		this.setState({
+			selectedUserId : userId,
+		});
 	}
 
 	onRoomChanged( roomId : string )
@@ -43,6 +65,11 @@ export class App extends React.Component<AppProps, AppState>
 	onSelectUserChanged( e : any )
 	{
 		const userId : number = parseInt( e.target.value );
+		this.setState({
+			selectedUserId : userId,
+		});
+
+		//	...
 		const childInstance = this.refChatMessageList.current;
 		childInstance.setUser( userId );
 	}
@@ -52,9 +79,9 @@ export class App extends React.Component<AppProps, AppState>
 	{
 		return (
 			<div className="App">
-				<div className="App-header">
+				<div className="App-header sticky-top">
 					I am : &nbsp;
-					<select onChange={ this.onSelectUserChanged } >
+					<select value={ this.state.selectedUserId } onChange={ this.onSelectUserChanged } >
 						<option value={1}>Alice</option>
 						<option value={2}>Bob</option>
 						<option value={3}>Mary</option>

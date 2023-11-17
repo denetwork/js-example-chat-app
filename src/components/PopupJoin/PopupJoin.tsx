@@ -80,11 +80,13 @@ export class PopupJoin extends Component<PopupJoinProps, PopupJoinState>
 
 	onClickSaveJoin()
 	{
-		const userId : string | null = localStorage.getItem( `user.current` );
-		const mnemonic : string | null = localStorage.getItem( `user.mnemonic` );
+		const userId : string | null = localStorage.getItem( `current.userId` );
+		const userName : string | null = localStorage.getItem( `current.userName` );
+		const mnemonic : string | null = localStorage.getItem( `current.mnemonic` );
+
 		if ( ! _.isString( mnemonic ) || _.isEmpty( mnemonic ) )
 		{
-			window.alert( `user.mnemonic empty` );
+			window.alert( `current.mnemonic empty` );
 			return ;
 		}
 
@@ -96,11 +98,13 @@ export class PopupJoin extends Component<PopupJoinProps, PopupJoinState>
 			return ;
 		}
 
+		console.log( `onClickSaveJoin - walletObj :`, walletObj );
+
 		const member : ChatRoomMember = {
 			memberType : ChatRoomMemberType.MEMBER,
 			wallet : walletObj.address,
 			publicKey : walletObj.publicKey,
-			userName : `User${ userId }`
+			userName : String( userName )
 		};
 
 		const inviteString : string = this.refTextarea.current.value;
@@ -112,7 +116,7 @@ export class PopupJoin extends Component<PopupJoinProps, PopupJoinState>
 		.catch( err =>
 		{
 			console.error( err );
-			window.alert( `error in data format` );
+			window.alert( err );
 		});
 
 

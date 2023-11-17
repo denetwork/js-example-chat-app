@@ -1,12 +1,11 @@
 import {
-	ChatMessage,
+	ChatMessage, ChatRoomMember,
 	ChatType,
-	ClientConnect, ClientRoom,
+	ClientConnect, ClientRoom, GroupMessageCrypto,
 	JoinRoomRequest,
 	LeaveRoomRequest,
 	LeaveRoomResponse,
-	MsgType,
-	PaginationOrder,
+	PaginationOrder, PrivateMessageCrypto,
 	PullMessageRequest,
 	PullMessageResponse,
 	ReceiveMessageCallback,
@@ -15,12 +14,12 @@ import {
 	VaChatRoomEntityItem
 } from "denetwork-chat-client";
 import React from "react";
-import { EtherWallet, TWalletBaseItem, Web3Digester, Web3Signer } from "web3id";
-import _ from "lodash";
+import { EtherWallet, TWalletBaseItem } from "web3id";
+import _, { memoize } from "lodash";
 import { PageUtil } from "denetwork-utils";
 import "./ChatMessageList.css";
 import { PopupInvitation } from "../PopupInvitation/PopupInvitation";
-import { ChatRoomEntityItem } from "denetwork-chat-client/dist/entities/ChatRoomEntity";
+import { ChatRoomEntityItem, ChatRoomMemberType } from "denetwork-chat-client/dist/entities/ChatRoomEntity";
 
 
 export interface LastTimestamp
@@ -64,6 +63,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		'evidence cement snap basket genre fantasy degree ability sunset pistol palace target',
 		'electric shoot legal trial crane rib garlic claw armed snow blind advance'
 	];
+	userName : Array<string> = [ 'Alice', 'Bob', 'Mary' ];
 
 	//
 	//	create a wallet by mnemonic
@@ -83,12 +83,19 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 			//	remove duplicate item
 			if ( message.payload.roomId === this.state.roomId )
 			{
-				this.chatMessageList.push( message.payload );
-				this.setState( {
-					messages : this.chatMessageList
-				} );
-				this._scrollToBottom();
-				console.log( `chatMessageList:`, this.chatMessageList );
+				this._decryptMessage( message ).then( ( decryptedMessage : SendMessageRequest ) =>
+				{
+					this.chatMessageList.push( decryptedMessage.payload );
+					this.setState( {
+						messages : this.chatMessageList
+					} );
+					this._scrollToBottom();
+					console.log( `chatMessageList:`, this.chatMessageList );
+
+				}).catch( err =>
+				{
+					console.error( `receiveMessageCallback : `, err );
+				});
 			}
 		}
 		else
@@ -140,9 +147,6 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		this.onClickJoin = this.onClickJoin.bind( this );
 		this.onInputValueChanged = this.onInputValueChanged.bind( this );
 		this._onChatMessageListScroll = this._onChatMessageListScroll.bind( this );
-
-		//	...
-		this.setUser( 1 );
 	}
 
 	componentDidUpdate()
@@ -160,20 +164,33 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		this.initialized = true;
 
 		//	...
+		this.initUser();
+
+		//	...
 		console.log( `🍔 componentDidMount` );
 	}
+
+	private initUser()
+	{
+		let userIdString : string | null = localStorage.getItem( `current.userId` ) || '1';
+		const userId : number = parseInt( userIdString );
+		this.setUser( userId );
+	}
+
 
 	public setUser( userId : number )
 	{
 		this.setState({
 			userId : userId,
 		})
-		console.log( `⭐️ user changed to: `, userId, this.mnemonicList[ userId - 1 ] );
-		localStorage.setItem( `user.current`, userId.toString() );
-		localStorage.setItem( `user.mnemonic`, this.mnemonicList[ userId - 1 ] );
+		console.log( `⭐️ user changed to: `, userId, this.userName[ userId - 1 ], this.mnemonicList[ userId - 1 ] );
+		localStorage.setItem( `current.userId`, userId.toString() );
+		localStorage.setItem( `current.userName`, this.userName[ userId - 1 ] );
+		localStorage.setItem( `current.mnemonic`, this.mnemonicList[ userId - 1 ] );
 
 		//	create wallet
 		this.walletObj = EtherWallet.createWalletFromMnemonic( this.mnemonicList[ userId - 1 ] );
+		console.log( `setUser this.walletObj :`, this.walletObj );
 	}
 
 	public async asyncLoad( roomId : string ) : Promise<boolean>
@@ -194,6 +211,8 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					return reject( `room not found` );
 				}
 
+				console.log( `🌈 asyncLoad roomItem :`, roomItem );
+
 				//
 				//	initialize member variables
 				//
@@ -201,7 +220,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 				delete this.lastTimestamp[ roomId ];
 				this.setState( {
 					loading : true,
-					roomId : ``,
+					roomId : roomItem.roomId,
 					roomItem : roomItem,
 					messages : [],
 				} );
@@ -213,7 +232,6 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 
 				//	...
 				this.setState( {
-					roomId : roomId,
 					loading : false
 				} );
 				resolve( true );
@@ -274,7 +292,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 				}
 
 				const pullMessageResponse : PullMessageResponse = await this._asyncPullMessage( roomId, startTimestamp, endTimestamp, pageNo, pageSize );
-				console.log( `pullMessageResponse :`, pullMessageResponse );
+				console.log( `🍺 pullMessageResponse :`, _.cloneDeep( pullMessageResponse ) );
 				if ( ! _.isObject( pullMessageResponse ) ||
 					! _.has( pullMessageResponse, 'status' ) ||
 					! _.has( pullMessageResponse, 'list' ) )
@@ -296,20 +314,24 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 						const chatMessage : SendMessageRequest = item.data;
 						if ( _.isObject( chatMessage ) )
 						{
+							//	decrypted message
+							const decryptedMessage : SendMessageRequest = await this._decryptMessage( chatMessage );
+							console.log( `🍄 decryptedMessage :`, decryptedMessage );
+
 							changed ++;
-							this.chatMessageList.unshift( chatMessage.payload );
+							this.chatMessageList.unshift( decryptedMessage.payload );
 
 							//
 							//	save the latest key for querying the next
 							//
-							if ( _.isNumber( chatMessage.payload.timestamp ) &&
-								chatMessage.payload.timestamp > 0 )
+							if ( _.isNumber( decryptedMessage.payload.timestamp ) &&
+								decryptedMessage.payload.timestamp > 0 )
 							{
 								if ( undefined === this.lastTimestamp[ roomId ] ||
-									chatMessage.payload.timestamp < this.lastTimestamp[ roomId ] )
+									decryptedMessage.payload.timestamp < this.lastTimestamp[ roomId ] )
 								{
 									//	save the older timestamp
-									this.lastTimestamp[ roomId ] = chatMessage.payload.timestamp;
+									this.lastTimestamp[ roomId ] = decryptedMessage.payload.timestamp;
 								}
 							}
 						}
@@ -352,7 +374,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					}
 				} as PullMessageRequest, ( response : PullMessageResponse ) : void =>
 				{
-					console.log( `🐹 pull data from the specified room and return the response: `, response );
+					console.log( `🐹 pull data from the specified room and return the response: `, _.cloneDeep( response ) );
 					resolve( response );
 				} );
 			}
@@ -363,12 +385,98 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		} );
 	}
 
+	/**
+	 *	@param message	{SendMessageRequest}
+	 *	@returns {SendMessageRequest}
+	 *	@private
+	 */
+	private _decryptMessage( message : SendMessageRequest ) : Promise<SendMessageRequest>
+	{
+		return new Promise( async ( resolve, reject ) =>
+		{
+			try
+			{
+				if ( ! _.isObject( this.state.roomItem ) || _.isEmpty( this.state.roomItem ) )
+				{
+					return reject( `room not ready` );
+				}
+				if ( ! message )
+				{
+					return reject( `invalid message` );
+				}
+				if ( ! this.walletObj )
+				{
+					return reject( `wallet not initialized` );
+				}
 
+				console.log( `🌷 this.state.roomItem :`, this.state.roomItem );
+				console.log( `🌷 message :`, message );
+
+				if ( this.state.roomItem.chatType !== message.payload.chatType )
+				{
+					return reject( `room type does not match message type` );
+				}
+
+				//	...
+				if ( ChatType.PRIVATE === this.state.roomItem.chatType )
+				{
+					const messageMember : ChatRoomMember = {
+						memberType: ChatRoomMemberType.MEMBER,
+						wallet: String( message.payload.wallet ).trim().toLowerCase(),
+						publicKey : message.payload.publicKey,
+						userName: message.payload.fromName,
+						userAvatar: message.payload.fromAvatar,
+						timestamp : message.payload.timestamp,
+					};
+					const tryRoomItem : ChatRoomEntityItem = _.cloneDeep( this.state.roomItem );
+					tryRoomItem.members[ messageMember.wallet ] = messageMember;
+
+					console.log( `🌷 tryRoomItem :`, tryRoomItem );
+
+					const decryptedBody = await new PrivateMessageCrypto().decryptMessage(
+						message.payload.body,
+						tryRoomItem,
+						this.walletObj.address,
+						this.walletObj.privateKey
+					);
+					console.log( `🌷 decryptedBody :`, decryptedBody );
+
+					if ( _.isString( decryptedBody ) && ! _.isEmpty( decryptedBody ) &&
+						_.isString( message.payload.body ) && ! _.isEmpty( message.payload.body ) &&
+						decryptedBody !== message.payload.body &&
+						message.payload.body.length > decryptedBody.length )
+					{
+						//	decrypt successfully, tries to save the member
+						await this.clientRoom.chatRoomStorageService.putMember( this.state.roomItem.roomId, messageMember );
+						const newRoomItem : ChatRoomEntityItem | null = await this.clientRoom.queryRoom( this.state.roomItem.roomId );
+						if ( newRoomItem )
+						{
+							this.setState({
+								roomItem : newRoomItem
+							});
+						}
+					}
+					message.payload.body = decryptedBody;
+				}
+				else if ( ChatType.GROUP === this.state.roomItem.chatType )
+				{
+					message.payload.body = await new GroupMessageCrypto().decryptMessage( message.payload.body, this.state.roomItem, `` );
+				}
+
+				resolve( message );
+			}
+			catch ( err )
+			{
+				console.error( `🔥 _decryptMessage :`, err );
+				resolve( message );
+			}
+		});
+	}
 
 
 	private _scrollToBottom()
 	{
-		this.messagesEnd.scrollIntoView({ behavior: "smooth" });
+		//this.messagesEnd.scrollIntoView({ behavior: "smooth" });
 	}
 
 	private _onChatMessageListScroll( e : any )
@@ -421,15 +529,23 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 		{
 			try
 			{
+				if ( ! _.isObject( this.state.roomItem ) || _.isEmpty( this.state.roomItem ) )
+				{
+					return reject( `room not ready` );
+				}
+
 				const pinCode = ``;
+				const userName = this.userName[ this.state.userId - 1 ];
 				const callback : ResponseCallback = ( response : any ) : void =>
 				{
 					console.log( `🍔 send message response: `, response );
 				};
+				const publicKey : string | undefined = ( ChatType.PRIVATE === this.state.roomItem.chatType ) ? this.walletObj.publicKey : undefined;
 				let chatMessage : ChatMessage = {
-					chatType : ChatType.GROUP,
+					chatType : this.state.roomItem.chatType,
 					wallet : this.walletObj.address,
-					fromName : `XING`,
+					publicKey : publicKey,
+					fromName : userName,
 					fromAvatar : `https://www.avatar.com/aaa.jgp`,
 					roomId : this.state.roomId,
 					body : this.state.value,
