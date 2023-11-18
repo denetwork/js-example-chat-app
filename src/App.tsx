@@ -15,6 +15,7 @@ export interface AppState
 
 export class App extends React.Component<AppProps, AppState>
 {
+	refRoomList : React.RefObject<any>;
 	refChatMessageList : React.RefObject<any>;
 
 	constructor( props : any )
@@ -25,10 +26,11 @@ export class App extends React.Component<AppProps, AppState>
 		};
 
 		//	...
+		this.refRoomList = React.createRef();
 		this.refChatMessageList = React.createRef();
 
 		//	...
-		this.onRoomChanged = this.onRoomChanged.bind( this );
+		this.onSwitchRoom = this.onSwitchRoom.bind( this );
 		this.onSelectUserChanged = this.onSelectUserChanged.bind( this );
 	}
 
@@ -48,7 +50,7 @@ export class App extends React.Component<AppProps, AppState>
 		});
 	}
 
-	onRoomChanged( roomId : string )
+	onSwitchRoom( roomId : string )
 	{
 		console.log( `App::onRoomChanged :`, roomId );
 
@@ -70,8 +72,16 @@ export class App extends React.Component<AppProps, AppState>
 		});
 
 		//	...
-		const childInstance = this.refChatMessageList.current;
-		childInstance.setUser( userId );
+		const childChatMessageList = this.refChatMessageList.current;
+		childChatMessageList.setUser( userId );
+
+		setTimeout( () =>
+		{
+			//	...
+			const childRoomList = this.refRoomList.current;
+			childRoomList.loadRooms();
+
+		}, 300 );
 	}
 
 
@@ -89,7 +99,10 @@ export class App extends React.Component<AppProps, AppState>
 				</div>
 				<div className="App-body">
 					<div className="RoomColumn">
-						<RoomList callbackOnRoomChanged={ this.onRoomChanged }></RoomList>
+						<RoomList
+							ref={this.refRoomList}
+							callbackOnRoomChanged={ this.onSwitchRoom }
+						/>
 					</div>
 					<div className="ChatColumn">
 						<ChatMessageList

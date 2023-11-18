@@ -13,8 +13,11 @@ import { EtherWallet } from "web3id";
 import _ from "lodash";
 
 
+export type PopupJoinCallback = ( data : any ) => void;
+
 export interface PopupJoinProps
 {
+	callback : PopupJoinCallback;
 }
 
 export interface PopupJoinState
@@ -112,6 +115,10 @@ export class PopupJoin extends Component<PopupJoinProps, PopupJoinState>
 		{
 			console.log( `chatRoomEntityItem :`, chatRoomEntityItem );
 			window.alert( `Joined room ${ chatRoomEntityItem.name }` );
+			if ( _.isFunction( this.props.callback ) )
+			{
+				this.props.callback( chatRoomEntityItem );
+			}
 		})
 		.catch( err =>
 		{

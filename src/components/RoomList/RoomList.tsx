@@ -53,8 +53,10 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		this.refPopupJoinRoom = React.createRef();
 		this.onClickCreateRoom = this.onClickCreateRoom.bind( this );
 		this.onClickJoinRoom = this.onClickJoinRoom.bind( this );
-		this.callbackPopupCreateRoom = this.callbackPopupCreateRoom.bind( this );
 		this.onClickRoomItem = this.onClickRoomItem.bind( this );
+
+		this.callbackPopupCreateRoom = this.callbackPopupCreateRoom.bind( this );
+		this.callbackPopupJoin = this.callbackPopupJoin.bind( this );
 	}
 
 	componentDidUpdate()
@@ -72,6 +74,12 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 
 		//	...
 		console.log( `🍔 componentDidMount` );
+		this.loadRooms();
+	}
+
+	public loadRooms()
+	{
+		console.log( `🍭 will loadRooms` );
 		this._asyncLoadRooms().then( _res =>
 		{
 			setTimeout( () =>
@@ -95,7 +103,25 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		{
 			try
 			{
-				const rooms : Array<ChatRoomEntityItem> = await this.clientRoom.queryRooms();
+				const userId : string | null = localStorage.getItem( `current.userId` );
+				const userName : string | null = localStorage.getItem( `current.userName` );
+				const mnemonic : string | null = localStorage.getItem( `current.mnemonic` );
+
+				if ( ! _.isString( mnemonic ) || _.isEmpty( mnemonic ) )
+				{
+					window.alert( `current.mnemonic empty` );
+					return ;
+				}
+
+				//	create wallet
+				const walletObj = EtherWallet.createWalletFromMnemonic( mnemonic );
+				if ( ! walletObj )
+				{
+					window.alert( `failed to create walletObj` );
+					return ;
+				}
+
+				const rooms : Array<ChatRoomEntityItem> = await this.clientRoom.queryRooms( walletObj.address );
 				console.log( `rooms :`, rooms );
 				this.setState({
 					rooms : rooms,
@@ -123,6 +149,12 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		childInstance.togglePopup();
 	}
 
+	callbackPopupJoin( _data : any )
+	{
+		this.onClickJoinRoom();
+		this.loadRooms();
+	}
+
 	callbackPopupCreateRoom( data : any )
 	{
 		console.log( `callbackPopupCreateRoom :`, data );
@@ -148,6 +180,7 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		console.log( `onClickSaveJoin - walletObj :`, walletObj );
 		walletObj.address = walletObj.address.trim().toLowerCase();
 		const createChatRoomOptions: CreateChatRoom = {
+			wallet : walletObj.address,
 			chatType : data.chatType,
 			name : data.name,
 			members : {
@@ -165,6 +198,9 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		{
 			console.log( `callbackPopupCreateRoom response :`, response );
 			window.alert( `Room ${ data.name } was created!` );
+
+			this.onClickCreateRoom();
+			this.loadRooms();
 
 		}).catch( err =>
 		{
@@ -201,6 +237,7 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 						<button onClick={ this.onClickJoinRoom }>Join a room</button>
 						<PopupJoin
 							ref={this.refPopupJoinRoom}
+							callback={ this.callbackPopupJoin }
 						></PopupJoin>
 					</div>
 				) }
