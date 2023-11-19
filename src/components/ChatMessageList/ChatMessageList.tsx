@@ -205,7 +205,8 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 					return reject( errorRoomId );
 				}
 
-				const roomItem : ChatRoomEntityItem | null = await this.clientRoom.queryRoom( roomId );
+				console.log( `will queryRoom ${ this.walletObj.address }.${ roomId }` );
+				const roomItem : ChatRoomEntityItem | null = await this.clientRoom.queryRoom( this.walletObj.address, roomId );
 				if ( ! roomItem )
 				{
 					return reject( `room not found` );
@@ -447,8 +448,13 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 						message.payload.body.length > decryptedBody.length )
 					{
 						//	decrypt successfully, tries to save the member
-						await this.clientRoom.chatRoomStorageService.putMember( this.state.roomItem.roomId, messageMember );
-						const newRoomItem : ChatRoomEntityItem | null = await this.clientRoom.queryRoom( this.state.roomItem.roomId );
+						try
+						{
+							await this.clientRoom.putMember( this.walletObj.address, this.state.roomItem.roomId, messageMember );
+						}
+						catch ( err ){}
+
+						const newRoomItem : ChatRoomEntityItem | null = await this.clientRoom.queryRoom( this.walletObj.address, this.state.roomItem.roomId );
 						if ( newRoomItem )
 						{
 							this.setState({
@@ -460,7 +466,38 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 				}
 				else if ( ChatType.GROUP === this.state.roomItem.chatType )
 				{
-					message.payload.body = await new GroupMessageCrypto().decryptMessage( message.payload.body, this.state.roomItem, `` );
+					const messageMember : ChatRoomMember = {
+						memberType: ChatRoomMemberType.MEMBER,
+						wallet: String( message.payload.wallet ).trim().toLowerCase(),
+						publicKey : message.payload.publicKey,
+						userName: message.payload.fromName,
+						userAvatar: message.payload.fromAvatar,
+						timestamp : message.payload.timestamp,
+					};
+
+					const decryptedBody = await new GroupMessageCrypto().decryptMessage( message.payload.body, this.state.roomItem, `` );
+					console.log( `🌷 decryptedBody :`, decryptedBody );
+					if ( _.isString( decryptedBody ) && ! _.isEmpty( decryptedBody ) &&
+						_.isString( message.payload.body ) && ! _.isEmpty( message.payload.body ) &&
+						decryptedBody !== message.payload.body &&
+						message.payload.body.length > decryptedBody.length )
+					{
+						//	decrypt successfully, tries to save the member
+						try
+						{
+							await this.clientRoom.putMember( this.walletObj.address, this.state.roomItem.roomId, messageMember );
+						}
+						catch ( err ){}
+
+						const newRoomItem : ChatRoomEntityItem | null = await this.clientRoom.queryRoom( this.walletObj.address, this.state.roomItem.roomId );
+						if ( newRoomItem )
+						{
+							this.setState({
+								roomItem : newRoomItem
+							});
+						}
+					}
+					message.payload.body = decryptedBody;
 				}
 
 				resolve( message );

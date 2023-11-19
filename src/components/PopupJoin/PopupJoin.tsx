@@ -60,12 +60,27 @@ export class PopupJoin extends Component<PopupJoinProps, PopupJoinState>
 		{
 			try
 			{
+				const mnemonic : string | null = localStorage.getItem( `current.mnemonic` );
+				if ( ! _.isString( mnemonic ) || _.isEmpty( mnemonic ) )
+				{
+					window.alert( `current.mnemonic empty` );
+					return ;
+				}
+
+				//	create wallet
+				const walletObj = EtherWallet.createWalletFromMnemonic( mnemonic );
+				if ( ! walletObj )
+				{
+					window.alert( `failed to create walletObj` );
+					return ;
+				}
+
 				if ( null !== VaChatRoomEntityItem.isValidRoomId( roomId ) )
 				{
 					return reject( `invalid roomId` );
 				}
 
-				const inviteRequest : InviteRequest | null = await this.clientRoom.inviteMember( roomId );
+				const inviteRequest : InviteRequest | null = await this.clientRoom.inviteMember( walletObj.address, roomId );
 				if ( null === inviteRequest )
 				{
 					return reject( `failed to create invitation` );

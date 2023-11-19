@@ -8,6 +8,7 @@ import classnames from "classnames";
 import "./RoomList.css";
 import _ from "lodash";
 import { PopupJoin } from "../PopupJoin/PopupJoin";
+import { PopupMemberList, PopupMemberListCallback } from "../PopupMemberList/PopupMemberList";
 
 export interface ChatRoomListProps
 {
@@ -28,9 +29,11 @@ export interface ChatRoomListState
 export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListState>
 {
 	initialized : boolean = false;
-	clientRoom !: ClientRoom;
+	clientRoom ! : ClientRoom;
 	refPopupCreateRoom : React.RefObject<any>;
 	refPopupJoinRoom : React.RefObject<any>;
+	refPopupMemberList : React.RefObject<any>;
+	walletObj ! : any;
 
 
 	constructor( props : any )
@@ -51,12 +54,17 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		this.clientRoom = new ClientRoom();
 		this.refPopupCreateRoom = React.createRef();
 		this.refPopupJoinRoom = React.createRef();
+		this.refPopupMemberList = React.createRef();
+
 		this.onClickCreateRoom = this.onClickCreateRoom.bind( this );
 		this.onClickJoinRoom = this.onClickJoinRoom.bind( this );
 		this.onClickRoomItem = this.onClickRoomItem.bind( this );
+		this.onClickPopupMemberList = this.onClickPopupMemberList.bind( this );
+		this.onClickDeleteRoom = this.onClickDeleteRoom.bind( this );
 
 		this.callbackPopupCreateRoom = this.callbackPopupCreateRoom.bind( this );
 		this.callbackPopupJoin = this.callbackPopupJoin.bind( this );
+		this.callbackPopupMemberList = this.callbackPopupMemberList.bind( this );
 	}
 
 	componentDidUpdate()
@@ -75,6 +83,27 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		//	...
 		console.log( `🍔 componentDidMount` );
 		this.loadRooms();
+	}
+
+	public loadWalletObject()
+	{
+		const mnemonic : string | null = localStorage.getItem( `current.mnemonic` );
+
+		if ( ! _.isString( mnemonic ) || _.isEmpty( mnemonic ) )
+		{
+			window.alert( `current.mnemonic empty` );
+			return;
+		}
+
+		//	create wallet
+		this.walletObj = EtherWallet.createWalletFromMnemonic( mnemonic );
+		if ( ! this.walletObj )
+		{
+			window.alert( `failed to create walletObj` );
+			return;
+		}
+
+		return this.walletObj;
 	}
 
 	public loadRooms()
@@ -103,29 +132,12 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 		{
 			try
 			{
-				const userId : string | null = localStorage.getItem( `current.userId` );
-				const userName : string | null = localStorage.getItem( `current.userName` );
-				const mnemonic : string | null = localStorage.getItem( `current.mnemonic` );
-
-				if ( ! _.isString( mnemonic ) || _.isEmpty( mnemonic ) )
-				{
-					window.alert( `current.mnemonic empty` );
-					return ;
-				}
-
-				//	create wallet
-				const walletObj = EtherWallet.createWalletFromMnemonic( mnemonic );
-				if ( ! walletObj )
-				{
-					window.alert( `failed to create walletObj` );
-					return ;
-				}
-
-				const rooms : Array<ChatRoomEntityItem> = await this.clientRoom.queryRooms( walletObj.address );
+				this.loadWalletObject();
+				const rooms : Array<ChatRoomEntityItem> = await this.clientRoom.queryRooms( this.walletObj.address );
 				console.log( `rooms :`, rooms );
-				this.setState({
+				this.setState( {
 					rooms : rooms,
-				});
+				} );
 
 				//	...
 				resolve( true );
@@ -159,35 +171,20 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 	{
 		console.log( `callbackPopupCreateRoom :`, data );
 
-		const userId : string | null = localStorage.getItem( `current.userId` );
 		const userName : string | null = localStorage.getItem( `current.userName` );
-		const mnemonic : string | null = localStorage.getItem( `current.mnemonic` );
+		this.loadWalletObject();
 
-		if ( ! _.isString( mnemonic ) || _.isEmpty( mnemonic ) )
-		{
-			window.alert( `current.mnemonic empty` );
-			return ;
-		}
-
-		//	create wallet
-		const walletObj = EtherWallet.createWalletFromMnemonic( mnemonic );
-		if ( ! walletObj )
-		{
-			window.alert( `failed to create walletObj` );
-			return ;
-		}
-
-		console.log( `onClickSaveJoin - walletObj :`, walletObj );
-		walletObj.address = walletObj.address.trim().toLowerCase();
-		const createChatRoomOptions: CreateChatRoom = {
-			wallet : walletObj.address,
+		console.log( `onClickSaveJoin - walletObj :`, this.walletObj );
+		this.walletObj.address = this.walletObj.address.trim().toLowerCase();
+		const createChatRoomOptions : CreateChatRoom = {
+			wallet : this.walletObj.address,
 			chatType : data.chatType,
 			name : data.name,
 			members : {
-				[ walletObj.address ] : {
+				[ this.walletObj.address ] : {
 					memberType : ChatRoomMemberType.OWNER,
-					wallet : walletObj.address,
-					publicKey : walletObj.publicKey,
+					wallet : this.walletObj.address,
+					publicKey : this.walletObj.publicKey,
 					userName : String( userName ),
 					userAvatar : 'https://www.aaa/avatar.png',
 					timestamp : new Date().getTime()
@@ -202,62 +199,113 @@ export class RoomList extends React.Component<ChatRoomListProps, ChatRoomListSta
 			this.onClickCreateRoom();
 			this.loadRooms();
 
-		}).catch( err =>
+		} ).catch( err =>
 		{
 			console.log( err );
-		});
+		} );
 	}
 
 	onClickRoomItem( roomId : string )
 	{
 		console.log( `clicked :`, roomId );
-		this.setState({
+		this.setState( {
 			currentRoomId : roomId
-		});
+		} );
 		this.props.callbackOnRoomChanged( roomId );
+	}
+
+
+	callbackPopupMemberList( data : any )
+	{
+		this.loadRooms();
+	}
+	onClickPopupMemberList( roomId : string )
+	{
+		const childInstance = this.refPopupMemberList.current;
+		childInstance.togglePopup();
+		childInstance.loadMembers( roomId );
+	}
+	onClickDeleteRoom( roomId : string )
+	{
+		if ( window.confirm( `Are you sure you want to delete this room?` ) )
+		{
+			this.loadWalletObject();
+			this.clientRoom.deleteRoom( this.walletObj.address, roomId ).then( deleted =>
+			{
+				window.alert( `room was deleted` );
+				this.loadRooms();
+
+			} ).catch( err =>
+			{
+				window.alert( err );
+			} );
+		}
 	}
 
 
 	render()
 	{
 		return (
-		<div className="RoomListDiv">
-			<div className="titleBar sticky-top">Room List</div>
-			<div className="panel">
-				{ this.state.loading ? (
-					<div>Loading ...</div>
-				) : (
-					<div>
-						<button onClick={ this.onClickCreateRoom }>Create a room</button>
-						<PopupCreateRoom
-							ref={this.refPopupCreateRoom}
-							callback={ this.callbackPopupCreateRoom }
-						></PopupCreateRoom>
+			<div className="RoomListDiv">
+				<div className="titleBar sticky-top">Room List</div>
+				<div className="panel">
+					{ this.state.loading ? (
+						<div>Loading ...</div>
+					) : (
+						<div>
+							<button onClick={ this.onClickCreateRoom }>Create a room
+							</button>
+							<PopupCreateRoom
+								ref={ this.refPopupCreateRoom }
+								callback={ this.callbackPopupCreateRoom }
+							></PopupCreateRoom>
 
-						<button onClick={ this.onClickJoinRoom }>Join a room</button>
-						<PopupJoin
-							ref={this.refPopupJoinRoom}
-							callback={ this.callbackPopupJoin }
-						></PopupJoin>
-					</div>
-				) }
-			</div>
-			<div className="listContainer">
-				{ this.state.rooms.map( ( item : ChatRoomEntityItem ) =>
-				<div key={ item.roomId }
-				     data-id={ item.roomId }
-				     className={ classnames( 'roomItem', { 'selected' : this.state.currentRoomId === item.roomId } ) }
-				     onClick={ ( _e ) => { this.onClickRoomItem( item.roomId ); } }>
-					<div className="roomName">
-						{ ChatType.PRIVATE === item.chatType ? 'Private' : 'Group' }
-						/
-						{ item.name }({ Object.keys( item.members ).length })</div>
-					<div className="roomId">{ item.roomId }</div>
-					<div className="roomCreatedTime">{ new Date( item.timestamp ).toLocaleString() }</div>
+							<button onClick={ this.onClickJoinRoom }>Join a room</button>
+							<PopupJoin
+								ref={ this.refPopupJoinRoom }
+								callback={ this.callbackPopupJoin }
+							></PopupJoin>
+						</div>
+					) }
 				</div>
-				) }
+				<div className="listContainer">
+					{ this.state.rooms.map( ( item : ChatRoomEntityItem ) =>
+						<div key={ item.roomId }
+						     data-id={ item.roomId }
+						     className={ classnames( 'roomItem', { 'selected' : this.state.currentRoomId === item.roomId } ) }>
+							<div className="roomInfoBox" onClick={ ( _e ) =>
+							{
+								this.onClickRoomItem( item.roomId );
+							} }>
+								<div className="roomName">
+									{ ChatType.PRIVATE === item.chatType ? 'Private' : 'Group' }
+									/
+									{ item.name }({ Object.keys( item.members ).length })
+								</div>
+								<div className="roomId">{ item.roomId }</div>
+								<div className="roomCreatedTime">{ new Date( item.timestamp ).toLocaleString() }</div>
+							</div>
+							<div className="roomOptBox">
+								<a onClick={ ( _e ) =>
+								{
+									this.onClickPopupMemberList( item.roomId );
+								} }>Members</a>
+								&nbsp;-&nbsp;
+								<a onClick={ ( _e ) =>
+								{
+									this.onClickDeleteRoom( item.roomId );
+								} }>Delete</a>
+							</div>
+						</div>
+					) }
+				</div>
+				<div>
+					<PopupMemberList
+						ref={ this.refPopupMemberList }
+						callback={ this.callbackPopupMemberList }
+					/>
+				</div>
 			</div>
-		</div>
 		);
 	}
 }

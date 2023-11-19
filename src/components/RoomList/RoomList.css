@@ -51,12 +51,16 @@
 {
 	background-color: #61dafb;
 }
-.RoomListDiv .listContainer .roomName
+.RoomListDiv .listContainer .roomInfoBox
+{
+
+}
+.RoomListDiv .listContainer .roomInfoBox .roomName
 {
 	font-size: 10px;
 	font-weight: 800;
 }
-.RoomListDiv .listContainer .roomId
+.RoomListDiv .listContainer .roomInfoBox .roomId
 {
 	font-size: 9px;
 	width: 100%;
@@ -65,7 +69,21 @@
 	/*text-overflow: ellipsis;*/
 	word-wrap:break-word;
 }
-.RoomListDiv .listContainer .roomCreatedTime
+.RoomListDiv .listContainer .roomInfoBox .roomCreatedTime
 {
 	font-size: 8px;
+}
+
+
+.RoomListDiv .listContainer .roomOptBox
+{
+	font-size: 9px;
+	height: 11px;
+	padding-top: 3px;
+}
+.RoomListDiv .listContainer .roomOptBox a
+{
+	font-size: 9px;
+	color: blue;
+	cursor: pointer;
 }
