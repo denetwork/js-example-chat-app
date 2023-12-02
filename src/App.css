@@ -27,6 +27,17 @@ input
   font-weight: 800;
   box-sizing: border-box;
 }
+.App-header .serverDiv
+{
+  float: left;
+  width: 160px;
+}
+.App-header .userDiv
+{
+  float: left;
+  width: 200px;
+}
+
 
 .App-body
 {

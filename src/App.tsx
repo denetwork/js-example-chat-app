@@ -10,8 +10,11 @@ export interface AppProps
 
 export interface AppState
 {
-	selectedUserId : number
+	selectedUserId : number;
+	selectedServer : string;
 }
+
+export const defaultServer = 'localhost:6616';
 
 export class App extends React.Component<AppProps, AppState>
 {
@@ -23,6 +26,7 @@ export class App extends React.Component<AppProps, AppState>
 		super( props );
 		this.state = {
 			selectedUserId : 1,
+			selectedServer : this.loadServerAddress(),
 		};
 
 		//	...
@@ -31,12 +35,29 @@ export class App extends React.Component<AppProps, AppState>
 
 		//	...
 		this.onSwitchRoom = this.onSwitchRoom.bind( this );
+		this.onSelectServerChanged = this.onSelectServerChanged.bind( this );
 		this.onSelectUserChanged = this.onSelectUserChanged.bind( this );
 	}
 
 	componentDidMount()
 	{
+		this.initSelectedServer();
 		this.initSelectedUser();
+	}
+
+
+	public loadServerAddress() : string
+	{
+		return localStorage.getItem( `current.server` ) || defaultServer;
+	}
+	private initSelectedServer()
+	{
+		let server : string = this.loadServerAddress();
+
+		console.log( `initSelectedServer server :`, server );
+		this.setState({
+			selectedServer : server,
+		});
 	}
 
 	private initSelectedUser()
@@ -62,6 +83,23 @@ export class App extends React.Component<AppProps, AppState>
 		{
 			console.error( `App::onRoomChanged err: `, err );
 		})
+	}
+
+	onSelectServerChanged( e : any )
+	{
+		const server : string = String( e.target.value );
+		this.setState({
+			selectedServer : server,
+		});
+
+		//	save to localStorage
+		localStorage.setItem( `current.server`, server );
+
+		setTimeout( () =>
+		{
+			window.location.reload();
+
+		}, 300 );
 	}
 
 	onSelectUserChanged( e : any )
@@ -90,12 +128,20 @@ export class App extends React.Component<AppProps, AppState>
 		return (
 			<div className="App">
 				<div className="App-header sticky-top">
-					I am : &nbsp;
-					<select value={ this.state.selectedUserId } onChange={ this.onSelectUserChanged } >
-						<option value={1}>Alice</option>
-						<option value={2}>Bob</option>
-						<option value={3}>Mary</option>
-					</select>
+					<div className="serverDiv">
+						<select value={ this.state.selectedServer } onChange={ this.onSelectServerChanged } >
+							<option value={ defaultServer }>{ defaultServer }</option>
+							<option value="8.140.247.159:6616">8.140.247.159:6616</option>
+						</select>
+					</div>
+					<div className="userDiv">
+						I am : &nbsp;
+						<select value={ this.state.selectedUserId } onChange={ this.onSelectUserChanged } >
+							<option value={1}>Alice</option>
+							<option value={2}>Bob</option>
+							<option value={3}>Mary</option>
+						</select>
+					</div>
 				</div>
 				<div className="App-body">
 					<div className="RoomColumn">
@@ -107,7 +153,7 @@ export class App extends React.Component<AppProps, AppState>
 					<div className="ChatColumn">
 						<ChatMessageList
 							ref={this.refChatMessageList}
-							serverUrl="localhost:6616"
+							serverUrl={ this.state.selectedServer }
 						/>
 					</div>
 				</div>

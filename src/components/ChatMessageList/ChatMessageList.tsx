@@ -130,6 +130,7 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 			value : ''
 		};
 		//	...
+		console.log( `🚀🚀🚀🚀🚀🚀 will connect server: ${ this.state.serverUrl }` );
 		this.clientConnect = new ClientConnect( this.state.serverUrl, this.receiveMessageCallback );
 		this.clientRoom = new ClientRoom();
 
