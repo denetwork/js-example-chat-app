@@ -8,7 +8,7 @@ import {
 	PaginationOrder, PrivateMessageCrypto,
 	PullMessageRequest,
 	PullMessageResponse,
-	ReceiveMessageCallback,
+	ClientReceiveMessageCallback,
 	ResponseCallback,
 	SendMessageRequest,
 	VaChatRoomEntityItem
@@ -74,9 +74,9 @@ export class ChatMessageList extends React.Component<ChatMessageListProps, ChatM
 	chatMessageList : Array<ChatMessage> = [];
 	lastTimestamp : LastTimestamp = {};
 
-	receiveMessageCallback : ReceiveMessageCallback = ( message : SendMessageRequest, callback ? : ( ack : any ) => void ) =>
+	receiveMessageCallback : ClientReceiveMessageCallback = ( message : SendMessageRequest, callback ? : ( ack : any ) => void ) =>
 	{
-		console.log( `ReceiveMessageCallback received a message: `, message );
+		console.log( `ClientReceiveMessageCallback received a message: `, message );
 		if ( _.isObject( message ) && _.has( message, 'payload' ) )
 		{
 			//	TODO
