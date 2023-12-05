@@ -131,7 +131,9 @@ export class App extends React.Component<AppProps, AppState>
 					<div className="serverDiv">
 						<select value={ this.state.selectedServer } onChange={ this.onSelectServerChanged } >
 							<option value={ defaultServer }>{ defaultServer }</option>
-							<option value="8.140.247.159:6616">8.140.247.159:6616</option>
+							<option value="8.140.247.159:6616">BJN1-8.140.247.159:6616</option>
+							<option value="40.81.205.197:6616">JPE1-40.81.205.197:6616</option>
+							<option value="20.243.160.34:6616">JPE2-20.243.160.34:6616</option>
 						</select>
 					</div>
 					<div className="userDiv">
